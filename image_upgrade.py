@@ -1,10 +1,7 @@
-from typing_extensions import IntVar
 import cv2
 from cv2 import dnn_superres
 import tkinter
 from tkinter import BooleanVar, messagebox
-
-
 
 class MainWindow(tkinter.Frame):
     def __init__(self, parent) -> None:
@@ -70,7 +67,7 @@ class MainWindow(tkinter.Frame):
 
         fname, fext = splitext(finput)[0], splitext(finput)[1]
         image = cv2.imread(finput)
-        # for scale, check in { 2: self.x2, 3: self.x3, 4: self.x4 }.items():
+
         for scale, item in self.model_map.items():
             if not item[0].get():
                 continue
@@ -92,13 +89,14 @@ class MainWindow(tkinter.Frame):
             # Save the image
             cv2.imwrite(f"{fname}_x{scale}{fext}", result)
 
+        cv2.destroyAllWindows()
         showinfo(title='Upgrade image', message='Done')
 
 
 if __name__ == '__main__':
     app = tkinter.Tk()
     app.title('Image upgrade')
-    app.minsize(width=300, height=100)
+    app.minsize(width=300, height=150)
     app.resizable(True, False)
     app.eval('tk::PlaceWindow . center')
     app.rowconfigure(0, weight=1)
