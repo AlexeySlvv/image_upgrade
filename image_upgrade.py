@@ -1,7 +1,8 @@
 import cv2
 from cv2 import dnn_superres
 import tkinter
-from tkinter import BooleanVar, messagebox
+from tkinter import BooleanVar, Variable, messagebox
+
 
 class MainWindow(tkinter.Frame):
     def __init__(self, parent) -> None:
@@ -19,15 +20,26 @@ class MainWindow(tkinter.Frame):
         self.init_ui()
 
     def init_ui(self) -> None:
-        from tkinter import Button, Label, Checkbutton
+        from tkinter import Button, Label, Checkbutton, Spinbox, Entry
+
+        self.do_scale = BooleanVar()
+        self.do_enhance = BooleanVar()
 
         button_input = Button(self, text='Open image', command=self.set_input)
         button_input.focus_set()
         self.label_input = Label(self, relief=tkinter.SUNKEN)
-        label_scale = Label(self, text='Scales:', relief=tkinter.GROOVE)
+        checkb_scale = Checkbutton(self, text='Scales:', variable=self.do_scale)
         checkb2 = Checkbutton(self, text='x2', variable=self.model_map[2][0])
         checkb3 = Checkbutton(self, text='x3', variable=self.model_map[3][0])
         checkb4 = Checkbutton(self, text='x4', variable=self.model_map[4][0])
+        checkb_enh = Checkbutton(self, text='Enhance: try sigma_s from 0 to 200 and sigma_r from 0.0 to 1.0',
+                                 variable=self.do_enhance)
+        label_sigmas = Label(self, text='sigma_s:',
+                             relief=tkinter.GROOVE, anchor=tkinter.E)
+        self.spinbox_ss = Spinbox(self, from_=0, to=200)
+        label_sigmar = Label(self, text='sigma_r:',
+                             relief=tkinter.GROOVE, anchor=tkinter.E)
+        self.entry_sr = Entry(self, text='0.0')
         button_do = Button(self, text='Upgrade', command=self.do)
         self.label_do = Label(self, relief=tkinter.GROOVE)
         button_quit = Button(self, text='Quit', command=self.quit)
@@ -35,19 +47,27 @@ class MainWindow(tkinter.Frame):
         button_input.grid(row=0, column=0, padx=3, pady=3, sticky=tkinter.NSEW)
         self.label_input.grid(row=0, column=1, columnspan=3,
                               padx=3, pady=3, sticky=tkinter.NSEW)
-        label_scale.grid(row=1, column=0, padx=3, pady=3, sticky=tkinter.NSEW)
+        checkb_scale.grid(row=1, column=0, padx=3, pady=3, sticky=tkinter.NSEW)
         checkb2.grid(row=1, column=1, padx=3, pady=3, sticky=tkinter.NSEW)
         checkb3.grid(row=1, column=2, padx=3, pady=3, sticky=tkinter.NSEW)
         checkb4.grid(row=1, column=3, padx=3, pady=3, sticky=tkinter.NSEW)
-        button_do.grid(row=2, column=0, padx=3, pady=3, sticky=tkinter.NSEW)
-        self.label_do.grid(row=2, column=1, columnspan=3,
-                              padx=3, pady=3, sticky=tkinter.NSEW)
-        button_quit.grid(row=3, column=3, padx=3, pady=3, sticky=tkinter.NSEW)
+        checkb_enh.grid(row=2, column=0, columnspan=4,
+                        padx=3, pady=3, sticky=tkinter.W)
+        label_sigmas.grid(row=3, column=0, padx=3, pady=3, sticky=tkinter.NSEW)
+        self.spinbox_ss.grid(row=3, column=1, padx=3,
+                             pady=3, sticky=tkinter.NSEW)
+        label_sigmar.grid(row=3, column=2, padx=3, pady=3, sticky=tkinter.NSEW)
+        self.entry_sr.grid(row=3, column=3, padx=3,
+                           pady=3, sticky=tkinter.NSEW)
+        button_do.grid(row=4, column=0, padx=3, pady=3, sticky=tkinter.NSEW)
+        self.label_do.grid(row=4, column=1, columnspan=3,
+                           padx=3, pady=3, sticky=tkinter.NSEW)
+        button_quit.grid(row=5, column=3, padx=3, pady=3, sticky=tkinter.NSEW)
 
-        self.columnconfigure(0, weight=0)
-        self.columnconfigure(1, weight=1)
-        self.columnconfigure(2, weight=1)
-        self.columnconfigure(3, weight=1)
+        # self.columnconfigure(0, weight=0)
+        # self.columnconfigure(1, weight=1)
+        # self.columnconfigure(2, weight=1)
+        # self.columnconfigure(3, weight=1)
 
     def quit(self, event=None) -> None:
         self.parent.destroy()
@@ -68,35 +88,51 @@ class MainWindow(tkinter.Frame):
         fname, fext = splitext(finput)[0], splitext(finput)[1]
         image = cv2.imread(finput)
 
-        for scale, item in self.model_map.items():
-            if not item[0].get():
-                continue
+        if self.do_scale.get():
+            for scale, item in self.model_map.items():
+                if not item[0].get():
+                    continue
 
-            fmodel = item[1]
-            self.label_do['text'] = f'scale {scale}'
+                fmodel = item[1]
+                self.label_do['text'] = f'scale {scale}'
+                self.update()
+
+                # Create an SR object
+                sr = dnn_superres.DnnSuperResImpl_create()
+                sr.readModel(fmodel)
+
+                # Set the desired model and scale to get correct pre- and post-processing
+                sr.setModel("edsr", scale)
+
+                # Upscale the image
+                up_image = sr.upsample(image)
+                # Save the image
+                cv2.imwrite(f"{fname}_x{scale}{fext}", up_image)
+
+                # Enhancing
+                if self.do_enhance.get():
+                    self.label_do['text'] = 'enhancing'
+                    self.update()
+                    enh_image = cv2.detailEnhance(
+                        up_image, sigma_s=float(self.spinbox_ss.get()), sigma_r=float(self.entry_sr['text']))
+                    cv2.imwrite(f"{fname}_x{scale}_enh{fext}", enh_image)
+        elif self.do_enhance.get():
+            self.label_do['text'] = 'enhancing'
             self.update()
-
-            # Create an SR object
-            sr = dnn_superres.DnnSuperResImpl_create()
-            sr.readModel(fmodel)
-
-            # Set the desired model and scale to get correct pre- and post-processing
-            sr.setModel("edsr", scale)
-
-            # Upscale the image
-            result = sr.upsample(image)
-
-            # Save the image
-            cv2.imwrite(f"{fname}_x{scale}{fext}", result)
+            enh_image = cv2.detailEnhance(
+                image, sigma_s=float(self.spinbox_ss.get()), sigma_r=float(self.entry_sr.get()))
+            cv2.imwrite(f"{fname}_enh{fext}", enh_image)
 
         cv2.destroyAllWindows()
+        self.label_do['text'] = 'done'
+        self.update()
         showinfo(title='Upgrade image', message='Done')
 
 
 if __name__ == '__main__':
     app = tkinter.Tk()
     app.title('Image upgrade')
-    app.minsize(width=300, height=150)
+    app.minsize(width=350, height=150)
     app.resizable(True, False)
     app.eval('tk::PlaceWindow . center')
     app.rowconfigure(0, weight=1)
