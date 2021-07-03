@@ -10,11 +10,12 @@ class MainWindow(tkinter.Frame):
         self.parent = parent
         self.grid(row=0, column=0, sticky=tkinter.NSEW)
 
+        self.model_name = 'edsr'
         # Read the desired model
         self.model_map = {
-            2: (BooleanVar(), 'EDSR_x2.pb'),
-            3: (BooleanVar(), 'EDSR_x3.pb'),
-            4: (BooleanVar(), 'EDSR_x4.pb'),
+            2: BooleanVar(),
+            3: BooleanVar(),
+            4: BooleanVar(),
         }
 
         self.init_ui()
@@ -28,10 +29,11 @@ class MainWindow(tkinter.Frame):
         button_input = Button(self, text='Open image', command=self.set_input)
         button_input.focus_set()
         self.label_input = Label(self, relief=tkinter.SUNKEN)
-        checkb_scale = Checkbutton(self, text='Scales:', variable=self.do_scale)
-        checkb2 = Checkbutton(self, text='x2', variable=self.model_map[2][0])
-        checkb3 = Checkbutton(self, text='x3', variable=self.model_map[3][0])
-        checkb4 = Checkbutton(self, text='x4', variable=self.model_map[4][0])
+        checkb_scale = Checkbutton(
+            self, text='Scales:', variable=self.do_scale)
+        checkb2 = Checkbutton(self, text='x2', variable=self.model_map[2])
+        checkb3 = Checkbutton(self, text='x3', variable=self.model_map[3])
+        checkb4 = Checkbutton(self, text='x4', variable=self.model_map[4])
         checkb_enh = Checkbutton(self, text='Enhance: try sigma_s from 0 to 200 and sigma_r from 0.0 to 1.0',
                                  variable=self.do_enhance)
         label_sigmas = Label(self, text='sigma_s:',
@@ -64,10 +66,10 @@ class MainWindow(tkinter.Frame):
                            padx=3, pady=3, sticky=tkinter.NSEW)
         button_quit.grid(row=5, column=3, padx=3, pady=3, sticky=tkinter.NSEW)
 
-        # self.columnconfigure(0, weight=0)
-        # self.columnconfigure(1, weight=1)
-        # self.columnconfigure(2, weight=1)
-        # self.columnconfigure(3, weight=1)
+        self.columnconfigure(0, weight=0)
+        self.columnconfigure(1, weight=1)
+        self.columnconfigure(2, weight=1)
+        self.columnconfigure(3, weight=1)
 
     def quit(self, event=None) -> None:
         self.parent.destroy()
@@ -89,11 +91,11 @@ class MainWindow(tkinter.Frame):
         image = cv2.imread(finput)
 
         if self.do_scale.get():
-            for scale, item in self.model_map.items():
-                if not item[0].get():
+            for scale, checked in self.model_map.items():
+                if not checked.get():
                     continue
 
-                fmodel = item[1]
+                fmodel = f'{self.model_name}_x{scale}.pb'
                 self.label_do['text'] = f'scale {scale}'
                 self.update()
 
@@ -102,7 +104,7 @@ class MainWindow(tkinter.Frame):
                 sr.readModel(fmodel)
 
                 # Set the desired model and scale to get correct pre- and post-processing
-                sr.setModel("edsr", scale)
+                sr.setModel(self.model_name, scale)
 
                 # Upscale the image
                 up_image = sr.upsample(image)
@@ -117,6 +119,7 @@ class MainWindow(tkinter.Frame):
                         up_image, sigma_s=float(self.spinbox_ss.get()), sigma_r=float(self.entry_sr['text']))
                     cv2.imwrite(f"{fname}_x{scale}_enh{fext}", enh_image)
         elif self.do_enhance.get():
+            # Only enhancing
             self.label_do['text'] = 'enhancing'
             self.update()
             enh_image = cv2.detailEnhance(
@@ -125,14 +128,13 @@ class MainWindow(tkinter.Frame):
 
         cv2.destroyAllWindows()
         self.label_do['text'] = 'done'
-        self.update()
-        showinfo(title='Upgrade image', message='Done')
+        showinfo(title='Image upgrade', message='Done')
 
 
 if __name__ == '__main__':
     app = tkinter.Tk()
     app.title('Image upgrade')
-    app.minsize(width=350, height=150)
+    app.minsize(width=400, height=150)
     app.resizable(True, False)
     app.eval('tk::PlaceWindow . center')
     app.rowconfigure(0, weight=1)

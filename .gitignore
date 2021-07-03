@@ -2,3 +2,12 @@
 EDSR_x2.pb
 EDSR_x3.pb
 EDSR_x4.pb
+LapSRN_x8.pb
+LapSRN_x4.pb
+LapSRN_x2.pb
+ESPCN_x2.pb
+ESPCN_x3.pb
+ESPCN_x4.pb
+FSRCNN_x2.pb
+FSRCNN_x3.pb
+FSRCNN_x4.pb
